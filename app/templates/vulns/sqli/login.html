@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}SQL注入 - 登录绕过 - XinRange{% endblock %}
+
+{% block content %}
+<a href="/vulns/sqli/" class="back-link">← SQL注入首页</a>
+
+<div class="difficulty-bar">
+    <span>难度：</span>
+    <a href="?level=low"><button class="diff-btn low {% if difficulty == 'low' %}active{% endif %}">🔵 Low</button></a>
+    <a href="?level=medium"><button class="diff-btn medium {% if difficulty == 'medium' %}active{% endif %}">🟡 Medium</button></a>
+    <a href="?level=high"><button class="diff-btn high {% if difficulty == 'high' %}active{% endif %}">🔴 High</button></a>
+</div>
+
+<div class="card" style="max-width:400px;margin:0 auto;">
+    <div class="card-title">🔐 系统登录</div>
+    {% if error %}
+    <div class="alert alert-danger">{{ error }}</div>
+    {% endif %}
+    <form method="post">
+        {% csrf_token %}
+        <label style="font-size:13px;color:var(--muted);display:block;margin-bottom:4px;">用户名</label>
+        <input type="text" name="username" placeholder="admin" required>
+        <label style="font-size:13px;color:var(--muted);display:block;margin-bottom:4px;">密码</label>
+        <input type="password" name="password" placeholder="任意密码" required>
+        <button type="submit" class="btn btn-primary" style="width:100%;margin-top:4px;">登录</button>
+    </form>
+    <div class="alert alert-info" style="margin-top:16px;">
+        💡 <strong>提示：</strong>Low/Medium 难度下，尝试在用户名输入 <code>admin' OR '1'='1</code> 或 <code>' OR '1'='1'--</code>
+    </div>
+    {% if difficulty == 'high' %}
+    <div class="alert alert-success" style="margin-top:12px;">
+        High 难度使用参数化查询 + MD5 密码校验，注入无效。
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,52 @@
+version: "3.9"
+
+# ============================================================
+# XinRange 开发环境 - SQLite 模式
+# 不需要达梦数据库，漏洞 Payload 教学不受影响
+# ============================================================
+
+services:
+  # ------------------------------------------------------
+  # Django 应用服务（SQLite 存储）
+  # ------------------------------------------------------
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.app
+    container_name: xinrange-app
+    restart: unless-stopped
+    environment:
+      - DJANGO_SECRET_KEY=xinrange-dev-key-2026
+      - DEBUG=True
+      - USE_SQLITE_DEV=True
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./app:/app
+    networks:
+      - xinrange_dev
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py createsuperuser --noinput --username admin --email admin@xinrange.local || true &&
+             gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 2"
+
+  # ------------------------------------------------------
+  # Nginx 反向代理
+  # ------------------------------------------------------
+  nginx:
+    image: nginx:alpine
+    container_name: xinrange-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./app/static:/app/static:ro
+    depends_on:
+      - app
+    networks:
+      - xinrange_dev
+
+networks:
+  xinrange_dev:
+    driver: bridge

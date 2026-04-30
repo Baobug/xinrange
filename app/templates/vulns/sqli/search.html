@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}SQL注入 - 搜索 - XinRange{% endblock %}
+
+{% block content %}
+<a href="/vulns/sqli/" class="back-link">← SQL注入首页</a>
+
+<div class="card">
+    <div class="card-title">🔍 文章搜索</div>
+    <form method="get">
+        <input type="hidden" name="level" value="{{ difficulty }}">
+        <div style="display:flex;gap:10px;">
+            <input type="text" name="q" placeholder="输入关键词..." value="{{ query|default:'' }}">
+            <button type="submit" class="btn btn-primary">搜索</button>
+        </div>
+    </form>
+</div>
+
+{% if results %}
+<div class="card">
+    <div class="card-title">搜索结果 ({{ results|length }} 条)</div>
+    <table>
+        <thead><tr><th>#</th><th>标题</th><th>内容摘要</th><th>作者</th></tr></thead>
+        <tbody>
+        {% for r in results %}
+        <tr>
+            <td>{{ r.id }}</td>
+            <td>{{ r.title }}</td>
+            <td>{{ r.content|truncatechars:60 }}</td>
+            <td>{{ r.author }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% elif query %}
+<div class="alert alert-warn">未找到 "<strong>{{ query }}</strong>" 相关结果</div>
+{% endif %}
+
+{% if raw_sql %}
+<div class="alert alert-danger">
+    <strong>⚠️ 当前难度存在 SQL 注入漏洞</strong><br>
+    执行语句：<code>{{ raw_sql }}</code><br>
+    <br>提示：尝试输入 <code>' OR '1'='1</code> 或 <code>' UNION SELECT 1,2,3,4 FROM DUAL--</code>
+</div>
+{% endif %}
+{% endblock %}

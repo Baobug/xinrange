@@ -1,0 +1,87 @@
+version: "3.9"
+
+# ============================================================
+# XinRange - 信创渗透靶场
+# 银河麒麟 V10 SP2 + 达梦 DM8 + Django
+# ============================================================
+
+services:
+  # ------------------------------------------------------
+  # 达梦数据库 DM8
+  # 镜像: 达梦官方 dm8-demo 或自定义
+  # ------------------------------------------------------
+  dm8:
+    image: registry.cn-hangzhou.aliyuncs.com/xinchuang/dm8:${DM_VERSION:-latest}
+    container_name: xinrange-dm8
+    restart: unless-stopped
+    environment:
+      - DM_MODE=INIT
+      - DM_PASSWORD=${DM_PASSWORD:-XinRange2026!}
+    ports:
+      - "5236:5236"
+    volumes:
+      - dm8_data:/opt/dmdbms/data
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    networks:
+      - xinrange_net
+    healthcheck:
+      test: ["CMD", "qlik", "disql", "-U", "SYSDBA", "-P", "${DM_PASSWORD:-XinRange2026!}", "-L", "/dev/null", "-E", "SELECT 1;"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # ------------------------------------------------------
+  # Django 应用服务
+  # ------------------------------------------------------
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.app
+    container_name: xinrange-app
+    restart: unless-stopped
+    environment:
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY:-your-secret-key-change-in-production}
+      - DM_HOST=dm8
+      - DM_PORT=5236
+      - DM_USER=SYSDBA
+      - DM_PASSWORD=${DM_PASSWORD:-XinRange2026!}
+      - DM_DATABASE=DAMENG
+      - DEBUG=${DEBUG:-True}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./app:/app
+    depends_on:
+      dm8:
+        condition: service_healthy
+    networks:
+      - xinrange_net
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py loaddata db/init/initial_data.yaml &&
+             gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 2"
+
+  # ------------------------------------------------------
+  # Nginx 反向代理
+  # ------------------------------------------------------
+  nginx:
+    image: nginx:alpine
+    container_name: xinrange-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./app/static:/app/static:ro
+    depends_on:
+      - app
+    networks:
+      - xinrange_net
+
+volumes:
+  dm8_data:
+
+networks:
+  xinrange_net:
+    driver: bridge

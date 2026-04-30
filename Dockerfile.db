@@ -1,0 +1,62 @@
+# ============================================================
+# XinRange - 达梦 DM8 Dockerfile
+#
+# 注意事项：
+#   1. 达梦 DM8 安装包需从官网下载（https://www.dameng.com）
+#      下载 dm8_2024_xx_xx_x86_install_64.tar.gz
+#   2. 将下载的安装包放入 db/dm8/ 目录
+#   3. 本镜像仅供开发/学习使用，商业部署请使用正式 license
+# ============================================================
+
+FROM centos:7
+
+LABEL maintainer="XinRange"
+LABEL description="达梦 DM8 数据库 - 信创靶场专用"
+
+# 达梦安装包（需手动放入 db/dm8/）
+COPY db/dm8/*.tar.gz /tmp/dm8.tar.gz
+
+# 安装依赖
+RUN yum install -y \
+        net-tools \
+        which \
+        hostname \
+        tar \
+        gzip \
+        libaio \
+        libnsl \
+        libnsl2 \
+        unixODBC \
+        perl \
+    && yum clean all \
+    && mkdir -p /opt/dmdbms \
+    && mkdir -p /dm8_backups
+
+# 解压安装包
+RUN tar -zxf /tmp/dm8.tar.gz -C /tmp/ \
+    && DM_INSTALLER=$(ls /tmp/dm_*_install_64*.bin 2>/dev/null || ls /tmp/dm_*/bin/DM*.dat 2>/dev/null || echo "") \
+    && echo "Found installer: $DM_INSTALLER"
+
+# ============================================================
+# 达梦 DM8 静默安装配置
+# ============================================================
+RUN echo '# DM8 静默安装配置' > /tmp/dm_install.cfg && \
+    echo 'TIME_ZONE=-480' >> /tmp/dm_install.cfg && \
+    echo 'INSTANCE_NAME=DAMENG' >> /tmp/dm_install.cfg && \
+    echo 'PORT_NUM=5236' >> /tmp/dm_install.cfg && \
+    echo 'SYSDBA_PWD=XinRange2026!' >> /tmp/dm_install.cfg && \
+    echo 'AUTO_STARTUP=1' >> /tmp/dm_install.cfg
+
+# 初始化数据库（首次运行由 entrypoint 处理）
+
+# 暴露端口
+EXPOSE 5236
+
+# 数据卷
+VOLUME ["/opt/dmdbms/data", "/opt/dmdbms/log", "/dm8_backups"]
+
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=5 \
+    CMD /opt/dmdbms/bin/disql -U SYSDBA -P XinRange2026! -C "SELECT 1;" || exit 1
+
+ENTRYPOINT ["/opt/dmdbms/bin/DmServiceDMSERVER"]

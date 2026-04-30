@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}XinRange{% endblock %}</title>
+    <style>
+        :root {
+            --bg: #0d1117;
+            --surface: #161b22;
+            --border: #30363d;
+            --text: #e6edf3;
+            --muted: #7d8590;
+            --accent: #58a6ff;
+            --low: #388bfd;
+            --medium: #d29922;
+            --high: #f85149;
+            --green: #3fb950;
+            --radius: 10px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+
+        /* Header */
+        header {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 0 24px;
+            height: 56px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .logo { font-size: 18px; font-weight: 700; color: var(--accent); cursor: pointer; }
+        .logo:hover { text-decoration: none; }
+        nav { display: flex; gap: 24px; font-size: 14px; }
+        nav a { color: var(--muted); }
+        nav a:hover, nav a.active { color: var(--text); text-decoration: none; }
+
+        /* Main */
+        .container { max-width: 900px; margin: 0 auto; padding: 32px 24px; }
+
+        /* Difficulty Tabs */
+        .difficulty-bar {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 28px;
+            align-items: center;
+        }
+        .difficulty-bar span { font-size: 13px; color: var(--muted); margin-right: 4px; }
+        .diff-btn {
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            border: 1.5px solid transparent;
+            transition: all 0.15s;
+            background: var(--surface);
+            color: var(--muted);
+        }
+        .diff-btn:hover { color: var(--text); border-color: var(--border); }
+        .diff-btn.low { border-color: var(--low); color: var(--low); }
+        .diff-btn.medium { border-color: var(--medium); color: var(--medium); }
+        .diff-btn.high { border-color: var(--high); color: var(--high); }
+        .diff-btn.active.low { background: rgba(56,139,253,0.15); }
+        .diff-btn.active.medium { background: rgba(210,153,34,0.15); }
+        .diff-btn.active.high { background: rgba(248,81,73,0.15); }
+
+        /* Card */
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+        .card-desc { font-size: 13px; color: var(--muted); line-height: 1.7; }
+        .card code {
+            background: rgba(110,118,129,0.2);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Consolas', monospace;
+            font-size: 12px;
+            color: #79c0ff;
+        }
+
+        /* Form */
+        input[type="text"], input[type="password"], input[type="file"], textarea, select {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text);
+            padding: 8px 12px;
+            font-size: 14px;
+            width: 100%;
+            margin-bottom: 12px;
+        }
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+        .btn {
+            padding: 8px 20px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            transition: opacity 0.15s;
+        }
+        .btn:hover { opacity: 0.85; }
+        .btn-primary { background: var(--accent); color: #fff; }
+        .btn-danger { background: var(--high); color: #fff; }
+        .btn-success { background: var(--green); color: #fff; }
+
+        /* Alert / Code */
+        .alert { padding: 12px 16px; border-radius: 6px; margin: 12px 0; font-size: 13px; }
+        .alert-info { background: rgba(56,139,253,0.1); border: 1px solid rgba(56,139,253,0.3); color: #79c0ff; }
+        .alert-warn { background: rgba(210,153,34,0.1); border: 1px solid rgba(210,153,34,0.3); color: #e3b341; }
+        .alert-danger { background: rgba(248,81,73,0.1); border: 1px solid rgba(248,81,73,0.3); color: #ff7b72; }
+        .alert-success { background: rgba(63,185,80,0.1); border: 1px solid rgba(63,185,80,0.3); color: #56d364; }
+
+        pre {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 16px;
+            font-family: 'Consolas', monospace;
+            font-size: 12px;
+            overflow-x: auto;
+            line-height: 1.8;
+            color: #e6edf3;
+            margin: 12px 0;
+        }
+
+        /* Table */
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+        th { color: var(--muted); font-weight: 500; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+        tr:hover td { background: rgba(255,255,255,0.02); }
+
+        /* Footer */
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 20px 24px;
+            text-align: center;
+            font-size: 12px;
+            color: var(--muted);
+            margin-top: 48px;
+        }
+
+        /* Back link */
+        .back-link { font-size: 13px; color: var(--muted); margin-bottom: 20px; display: inline-block; }
+        .back-link:hover { color: var(--text); text-decoration: none; }
+    </style>
+    {% block extra_style %}{% endblock %}
+</head>
+<body>
+    <header>
+        <a href="/" class="logo">XinRange</a>
+        <nav>
+            <a href="/">首页</a>
+            <a href="/vulns/sqli/">SQL注入</a>
+            <a href="/vulns/xss/">XSS</a>
+            <a href="/vulns/upload/">文件上传</a>
+            <a href="/vulns/cmd/">命令注入</a>
+        </nav>
+    </header>
+
+    <div class="container">
+        {% block content %}{% endblock %}
+    </div>
+
+    <footer>
+        XinRange · 信创渗透学习靶场 · 仅供安全教学与研究使用
+    </footer>
+
+    {% block extra_script %}{% endblock %}
+</body>
+</html>

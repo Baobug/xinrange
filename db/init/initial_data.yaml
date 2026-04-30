@@ -1,0 +1,15 @@
+# XinRange 初始数据
+
+- model: auth.permission
+  fields:
+    codename: add_sqliuser
+    name: Can add sqli user
+    content_type: [vulns, sqliuser]
+
+- model: auth.user
+  fields:
+    username: admin
+    password: !!binary PjE+NzBy
+    is_superuser: true
+    is_staff: true
+    is_active: true

