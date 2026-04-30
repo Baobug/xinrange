@@ -11,6 +11,7 @@ from django.shortcuts import render, redirect
 from django.http import HttpResponse
 from django.views.decorators.http import require_http_methods
 from django.db import connection, connections
+from django.db.models import Q
 from django.conf import settings
 from .models import SqliPost, SqliUser, XssComment, UploadedFile, PingResult
 
@@ -72,15 +73,14 @@ def sqli_search(request):
                 results = [dict(zip(columns, row)) for row in rows]
 
         else:
-            # ✅ High: 参数化查询
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    "SELECT * FROM sqli_posts WHERE title LIKE %s OR content LIKE %s",
-                    [f'%{query}%', f'%{query}%']
+            # ✅ High: Django ORM 参数化查询（兼容 SQLite / 达梦）
+            results = [
+                {'id': p.id, 'title': p.title, 'content': p.content, 'author': p.author}
+                for p in SqliPost.objects.using(db_alias).filter(
+                    Q(title__icontains=query) | Q(content__icontains=query)
                 )
-                columns = [col[0] for col in cursor.description]
-                rows = cursor.fetchall()
-                results = [dict(zip(columns, row)) for row in rows]
+            ]
+            raw_sql = None
 
     return render(request, 'vulns/sqli/search.html', {
         'results': results,
