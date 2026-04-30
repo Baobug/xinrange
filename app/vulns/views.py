@@ -10,6 +10,7 @@ import hashlib
 from django.shortcuts import render, redirect
 from django.http import HttpResponse
 from django.views.decorators.http import require_http_methods
+from django.views.decorators.csrf import csrf_exempt
 from django.db import connection, connections
 from django.db.models import Q
 from django.conf import settings
@@ -41,6 +42,7 @@ def sqli_home(request):
     return render(request, 'vulns/sqli/home.html', {'difficulty': difficulty})
 
 
+@csrf_exempt
 @require_http_methods(["GET", "POST"])
 def sqli_search(request):
     """
@@ -59,14 +61,9 @@ def sqli_search(request):
 
         if difficulty in ['low', 'medium']:
             # ❌ Low/Medium: 直接拼接（SQL 注入演示）
-            if db_alias == 'dameng':
-                # 达梦 DM8 语法
-                raw_sql = f"SELECT * FROM sqli_posts WHERE title LIKE '%{query}%' OR content LIKE '%{query}%'"
-            else:
-                # SQLite 语法（开发模式）
-                raw_sql = f"SELECT * FROM sqli_posts WHERE title LIKE '%{query}%' OR content LIKE '%{query}%'"
+            raw_sql = f"SELECT * FROM sqli_posts WHERE title LIKE '%{query}%' OR content LIKE '%{query}%'"
 
-            with connection.cursor(db_alias) as cursor:
+            with connections[db_alias].cursor() as cursor:
                 cursor.execute(raw_sql)
                 columns = [col[0] for col in cursor.description]
                 rows = cursor.fetchall()
@@ -90,6 +87,7 @@ def sqli_search(request):
     })
 
 
+@csrf_exempt
 @require_http_methods(["GET", "POST"])
 def sqli_login(request):
     """
@@ -108,25 +106,24 @@ def sqli_login(request):
 
         if difficulty == 'low':
             sql = f"SELECT * FROM sqli_users WHERE username='{username}' AND password='{password}'"
-            with connection.cursor(db_alias) as cursor:
+            with connections[db_alias].cursor() as cursor:
                 cursor.execute(sql)
                 user = cursor.fetchone()
 
         elif difficulty == 'medium':
             username_clean = username.replace(' ', '').replace('--', '').replace('#', '')
             sql = f"SELECT * FROM sqli_users WHERE username='{username_clean}' AND password='{password}'"
-            with connection.cursor(db_alias) as cursor:
+            with connections[db_alias].cursor() as cursor:
                 cursor.execute(sql)
                 user = cursor.fetchone()
 
         else:
+            # ✅ High: Django ORM 参数化查询
             pwd_hash = hashlib.md5(password.encode()).hexdigest()
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    "SELECT * FROM sqli_users WHERE username=%s AND password=%s",
-                    [username, pwd_hash]
-                )
-                user = cursor.fetchone()
+            user_obj = SqliUser.objects.using(db_alias).filter(
+                username=username, password=pwd_hash
+            ).first()
+            user = (user_obj.id, user_obj.username, user_obj.password, user_obj.email, user_obj.role) if user_obj else None
 
         if user:
             return HttpResponse(f"<div class='alert alert-success'>登录成功: {user[1]} (角色: {user[4] if len(user) > 4 else 'user'})</div>")
@@ -154,6 +151,7 @@ def xss_home(request):
     })
 
 
+@csrf_exempt
 @require_http_methods(["POST"])
 def xss_post(request):
     """XSS 漏洞评论提交"""
@@ -192,6 +190,7 @@ def upload_home(request):
     })
 
 
+@csrf_exempt
 @require_http_methods(["POST"])
 def upload_do(request):
     """文件上传处理"""
@@ -258,6 +257,7 @@ def cmd_home(request):
     })
 
 
+@csrf_exempt
 @require_http_methods(["POST"])
 def cmd_ping(request):
     """Ping 命令执行（命令注入演示）"""
