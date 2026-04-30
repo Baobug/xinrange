@@ -60,24 +60,32 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # ============================================================
 # 达梦数据库配置
 # ============================================================
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    },
-    # 达梦数据库连接（用于靶场漏洞场景）
-    'dameng': {
-        'ENGINE': 'dmPython',  # 达梦 DM8 Python 驱动
-        'NAME': os.getenv('DM_DATABASE', 'DAMENG'),
-        'USER': os.getenv('DM_USER', 'SYSDBA'),
-        'PASSWORD': os.getenv('DM_PASSWORD', ''),
-        'HOST': os.getenv('DM_HOST', 'localhost'),
-        'PORT': os.getenv('DM_PORT', '5236'),
-        'OPTIONS': {
-            'charset': 'utf-8',
-        },
+# 开发模式 USE_SQLITE_DEV=True 时，跳过达梦连接，只用 SQLite
+if os.getenv('USE_SQLITE_DEV', 'False').lower() == 'true':
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        },
+        'dameng': {
+            'ENGINE': 'dmPython',
+            'NAME': os.getenv('DM_DATABASE', 'DAMENG'),
+            'USER': os.getenv('DM_USER', 'SYSDBA'),
+            'PASSWORD': os.getenv('DM_PASSWORD', ''),
+            'HOST': os.getenv('DM_HOST', 'localhost'),
+            'PORT': os.getenv('DM_PORT', '5236'),
+            'OPTIONS': {
+                'charset': 'utf-8',
+            },
+        }
+    }
 
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
@@ -97,5 +105,6 @@ STATICFILES_DIRS = [BASE_DIR / 'app' / 'static']
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# 达梦 DB Router（将核心数据存 SQLite，靶场数据走达梦）
-DATABASE_ROUTERS = ['config.dbrouter.DamengRouter']
+# 达梦 DB Router（开发模式跳过）
+if os.getenv('USE_SQLITE_DEV', 'False').lower() != 'true':
+    DATABASE_ROUTERS = ['config.dbrouter.DamengRouter']
