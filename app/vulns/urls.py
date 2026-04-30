@@ -20,4 +20,7 @@ urlpatterns = [
     # 命令注入模块
     path('cmd/', views.cmd_home, name='cmd_home'),
     path('cmd/ping/', views.cmd_ping, name='cmd_ping'),
+
+    # 文件读取（配合文件上传 WebShell）
+    path('uploads/<str:filename>', views.serve_file, name='serve_file'),
 ]

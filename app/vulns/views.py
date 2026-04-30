@@ -205,7 +205,7 @@ def upload_do(request):
     filename = uploaded_file.name
     ext = os.path.splitext(filename)[1].lower()
 
-    upload_dir = '/tmp/xinrange/uploads'
+    upload_dir = os.path.join(settings.BASE_DIR, 'uploads')
     os.makedirs(upload_dir, exist_ok=True)
 
     if difficulty == 'low':
@@ -293,3 +293,24 @@ def cmd_ping(request):
     )
 
     return HttpResponse(f"<pre>{result}</pre>")
+
+
+# ============================================================
+# 文件包含/敏感文件读取（用于配合文件上传 WebShell）
+# ============================================================
+
+import mimetypes
+
+
+def serve_file(request, filename):
+    """危险的文件读取功能 - 模拟任意文件读取漏洞"""
+    safe_path = os.path.join(settings.BASE_DIR, 'uploads', filename)
+    base_uploads = os.path.join(settings.BASE_DIR, 'uploads')
+    if not os.path.abspath(safe_path).startswith(os.path.abspath(base_uploads)):
+        return HttpResponse("禁止访问", status=403)
+    if not os.path.exists(safe_path):
+        return HttpResponse("文件不存在", status=404)
+    with open(safe_path, 'rb') as f:
+        content = f.read()
+    content_type, _ = mimetypes.guess_type(safe_path)
+    return HttpResponse(content, content_type=content_type or 'application/octet-stream')

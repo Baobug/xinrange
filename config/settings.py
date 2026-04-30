@@ -103,6 +103,10 @@ STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'collected_static'
 STATICFILES_DIRS = [BASE_DIR / 'app' / 'static']
 
+# 上传文件路径（开发模式供 WebShell 测试）
+MEDIA_URL = '/uploads/'
+MEDIA_ROOT = BASE_DIR / 'uploads'
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # 达梦 DB Router（开发模式跳过）

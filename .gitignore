@@ -48,5 +48,3 @@ Thumbs.db
 *.pem
 *.key
 .env
-!.env.example
-!.env.dev
